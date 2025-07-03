@@ -8,12 +8,11 @@ def send_whatsapp_message(phone_number, message_text):
     """
     Envia uma mensagem de texto para um número de telefone via WhatsApp Business API.
     """
-    # ATENÇÃO: Estes valores devem ser guardados como variáveis de ambiente!
     ACCESS_TOKEN = os.environ.get('WHATSAPP_ACCESS_TOKEN')
     PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID')
     
     if not ACCESS_TOKEN or not PHONE_NUMBER_ID:
-        print("ERRO: As variáveis de ambiente WHATSAPP_ACCESS_TOKEN e WHATSAPP_PHONE_NUMBER_ID não estão configuradas.")
+        print("ERRO CRÍTICO: As variáveis de ambiente do WhatsApp não estão configuradas. A mensagem não pode ser enviada.")
         return
 
     url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
@@ -34,11 +33,13 @@ def send_whatsapp_message(phone_number, message_text):
     
     try:
         response = requests.post(url, headers=headers, data=json.dumps(payload ))
-        response.raise_for_status()  # Lança um erro para respostas HTTP 4xx/5xx
-        
-        print(f"Mensagem enviada com sucesso para {phone_number}: {response.json()}")
+        response.raise_for_status()
+        print(f"Mensagem enviada com sucesso para {phone_number}.")
         return response.json()
         
     except requests.exceptions.RequestException as e:
-        print(f"Erro ao enviar mensagem para {phone_number}: {e}")
+        print(f"ERRO ao enviar mensagem para {phone_number}: {e}")
+        # Adicionar mais detalhes do erro se disponíveis
+        if e.response is not None:
+            print(f"Detalhes do erro da API: {e.response.text}")
         return None
