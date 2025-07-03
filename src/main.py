@@ -1,63 +1,38 @@
-# main.py
-# TESTE DE DIAGNÓSTICO: Desativar completamente o CSRF para isolar o problema.
+# main.py (para o serviço do bot)
 
 import os
-from flask import Flask, render_template
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import LoginManager
-# from flask_wtf.csrf import CSRFProtect # <-- PASSO 1: Comentar a importação
+from flask_migrate import Migrate # Manter para a migração do DB, se necessário
 
 # --- Configuração da Aplicação ---
 app = Flask(__name__)
 
+# Configuração de Banco de Dados
 db_url = os.environ.get('DATABASE_URL')
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url or f"sqlite:///{os.path.join(os.path.dirname(__file__), 'app.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'uma-chave-secreta-muito-segura-para-desenvolvimento')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'uma-chave-secreta-para-o-bot') # Uma chave secreta para o bot
 
 # --- Inicialização das Extensões ---
 db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-login_manager = LoginManager(app)
-login_manager.login_view = 'auth.login'
-login_manager.login_message = "Por favor, faça login para aceder a esta página."
-
-# --- PASSO 2: Comentar a inicialização e a isenção do CSRF ---
-# csrf = CSRFProtect(app)
+migrate = Migrate(app, db) # Manter para a migração do DB, se necessário
 
 # --- Modelos e Blueprints ---
-from src.models.user import User
-from src.models.conversation import Conversation, Patient, Schedule
+# Importar apenas os modelos e blueprints necessários para o bot
+from src.models.conversation import Conversation # O bot interage com conversas
+# Não precisamos de User, Patient, Schedule aqui
 
-from src.routes.auth import auth_bp
-from src.routes.system import system_bp
-from src.routes.whatsapp import whatsapp_bp
+from src.routes.whatsapp import whatsapp_bp # Apenas o blueprint do WhatsApp
 
-# csrf.exempt(whatsapp_bp) # <-- PASSO 3: Comentar a isenção
-
-app.register_blueprint(auth_bp)
-app.register_blueprint(system_bp)
+# Registrar apenas o blueprint do WhatsApp
 app.register_blueprint(whatsapp_bp)
 
-# --- Configuração do Login Manager ---
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-# --- Rotas Principais ---
-@app.route('/')
-def home():
-    return render_template('home.html')
-
-@app.route('/health')
-def health_check():
-    return "OK", 200
-
-# --- Criação do Banco de Dados ---
+# --- Criação do Banco de Dados (se necessário) ---
+# Isto é importante para garantir que as tabelas do bot são criadas
 with app.app_context():
     db.create_all()
 
