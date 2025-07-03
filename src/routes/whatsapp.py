@@ -1,6 +1,9 @@
+# src/routes/whatsapp.py
+
 from flask import Blueprint, request, jsonify
 from src.models.conversation import db, Conversation, Appointment
 from src.services.bot_logic import BotLogic
+from src.services.whatsapp_service import send_whatsapp_message # <--- IMPORTAÇÃO NOVA
 import json
 import os
 
@@ -34,7 +37,6 @@ def handle_webhook():
         if not data:
             return jsonify({"status": "error", "message": "Dados inválidos"}), 400
         
-        # Processa cada entrada de mensagem
         if 'entry' in data:
             for entry in data['entry']:
                 if 'changes' in entry:
@@ -53,11 +55,13 @@ def process_message(message_data):
     try:
         if 'messages' in message_data:
             for message in message_data['messages']:
+                # Ignorar mensagens de status (ex: "entregue", "lida")
+                if message.get('type') != 'text':
+                    continue
+
                 phone_number = message['from']
                 message_text = message.get('text', {}).get('body', '')
-                message_id = message['id']
                 
-                # Salva a mensagem no banco de dados
                 conversation = Conversation(
                     phone_number=phone_number,
                     message=message_text,
@@ -67,21 +71,22 @@ def process_message(message_data):
                 db.session.add(conversation)
                 db.session.commit()
                 
-                # Processa a mensagem e gera resposta
                 response = bot_logic.process_message(message_text, phone_number)
                 
                 if response:
-                    # Atualiza a conversa com a resposta
                     conversation.response = response
                     conversation.status = 'processed'
                     db.session.commit()
                     
-                    # Aqui você enviaria a resposta via WhatsApp Business API
-                    # send_whatsapp_message(phone_number, response)
+                    # --- ALTERAÇÃO PRINCIPAL ---
+                    # Agora a resposta é enviada para o utilizador
+                    send_whatsapp_message(phone_number, response)
                     print(f"Resposta para {phone_number}: {response}")
                 
     except Exception as e:
         print(f"Erro ao processar mensagem: {str(e)}")
+
+# --- O resto do ficheiro (rotas de administração) permanece igual ---
 
 @whatsapp_bp.route('/conversations', methods=['GET'])
 def get_conversations():
@@ -115,4 +120,3 @@ def update_appointment_status(appointment_id):
         return jsonify(appointment.to_dict())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
