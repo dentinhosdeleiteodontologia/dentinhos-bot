@@ -1,7 +1,0 @@
-Flask
-Flask-SQLAlchemy
-requests
-gunicorn
-Flask-Migrate # Manter se usar migrações de DB
-pytz
-psycopg2-binary
